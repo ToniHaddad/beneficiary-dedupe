@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "beneficiary-dedupe"
+version = "0.1.0"
+description = "Find the same household registered twice across Arabic and Latin spellings, with a review screen."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = [
+    "rapidfuzz>=3.6",
+    "numpy>=1.26",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[project.scripts]
+dedupe = "beneficiary_dedupe.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+beneficiary_dedupe = ["static/*.html", "model.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
