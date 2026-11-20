@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Household duplicate review</title>
+<style>
+:root {
+  --bg: #f3efe6; --surface: #fffdf7; --surface-2: #f8f4ea; --ink: #1d2729; --muted: #5d6a6b;
+  --line: #ddd5c4; --accent: #0c6a62; --accent-ink: #ffffff; --act-ink: #ffffff;
+  --same: #2b7a4b; --diff: #b3412a; --unsure: #9c6a0e;
+  --variant-bg: #fbe9c2; --variant-ink: #6d4b06; --differs-bg: #f6d5cb; --differs-ink: #7c2a17;
+  --pos: #2b7a4b; --neg: #b3412a; --bar-track: #ebe4d4;
+  --shadow: 0 1px 2px rgba(40, 32, 12, .06), 0 4px 16px rgba(40, 32, 12, .06);
+  --sans: "Segoe UI", "Helvetica Neue", Arial, system-ui, sans-serif;
+  --arabic: "Noto Naskh Arabic", "Segoe UI", "Geeza Pro", Tahoma, sans-serif;
+  --mono: "Cascadia Mono", "SF Mono", Consolas, ui-monospace, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101719; --surface: #172124; --surface-2: #1c282b; --ink: #e9e5db; --muted: #98a4a4;
+    --line: #2b393c; --accent: #4cb3a6; --accent-ink: #0b1517; --act-ink: #0b1517;
+    --same: #5fc287; --diff: #e98468; --unsure: #e2b250;
+    --variant-bg: #3b3020; --variant-ink: #f1d08a; --differs-bg: #45261f; --differs-ink: #f6b3a1;
+    --pos: #5fc287; --neg: #e98468; --bar-track: #253235;
+    --shadow: none; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101719; --surface: #172124; --surface-2: #1c282b; --ink: #e9e5db; --muted: #98a4a4;
+  --line: #2b393c; --accent: #4cb3a6; --accent-ink: #0b1517; --act-ink: #0b1517;
+  --same: #5fc287; --diff: #e98468; --unsure: #e2b250;
+  --variant-bg: #3b3020; --variant-ink: #f1d08a; --differs-bg: #45261f; --differs-ink: #f6b3a1;
+  --pos: #5fc287; --neg: #e98468; --bar-track: #253235;
+  --shadow: none; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.45 var(--sans); }
+button { font: inherit; color: inherit; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 18px 16px 40px; }
+
+header.top { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; justify-content: space-between; margin-bottom: 14px; }
+h1 { font-size: 22px; line-height: 1.2; margin: 0; letter-spacing: -.01em; }
+.source { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.tools { display: flex; gap: 8px; align-items: center; }
+.ghost { background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.ghost:hover { border-color: var(--accent); }
+a.ghost { text-decoration: none; color: inherit; }
+
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; box-shadow: var(--shadow); }
+.stat b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 12.5px; }
+.progress { height: 6px; background: var(--bar-track); border-radius: 3px; overflow: hidden; margin-top: 8px; display: flex; }
+.progress i { display: block; height: 100%; }
+
+.layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 14px; align-items: start; }
+.queue { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+.queue h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.queue ol { list-style: none; margin: 0; padding: 0; max-height: 640px; overflow-y: auto; position: relative; }
+.queue li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px 12px; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 13px; }
+.queue li:hover { background: var(--surface-2); }
+.queue li.on { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
+.queue .names { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.queue .p { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.dot.same { background: var(--same); } .dot.different { background: var(--diff); } .dot.unsure { background: var(--unsure); }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+.card-head { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.score { display: flex; align-items: baseline; gap: 10px; }
+.score b { font-size: 28px; font-variant-numeric: tabular-nums; }
+.score span { color: var(--muted); font-size: 13px; }
+.pill { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12.5px; border: 1px solid var(--line); }
+.pill.same { color: var(--same); border-color: var(--same); }
+.pill.different { color: var(--diff); border-color: var(--diff); }
+.pill.unsure { color: var(--unsure); border-color: var(--unsure); }
+.policy { margin: 12px 16px 0; padding: 8px 12px; border-radius: 8px; background: var(--variant-bg); color: var(--variant-ink); font-size: 13px; }
+
+table.cmp { width: 100%; border-collapse: collapse; table-layout: fixed; }
+table.cmp th, table.cmp td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.cmp thead th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+table.cmp th.label { width: 22%; font-weight: 600; font-size: 13px; color: var(--muted); }
+td.val { font-size: 15.5px; overflow-wrap: anywhere; }
+td.val[dir="rtl"] { font-family: var(--arabic); font-size: 17px; text-align: right; }
+td.val .empty { color: var(--muted); font-style: italic; font-size: 13px; }
+tr.variant td.val { background: var(--variant-bg); color: var(--variant-ink); }
+tr.differs td.val { background: var(--differs-bg); color: var(--differs-ink); }
+tr.missing td.val { background: var(--surface-2); }
+.note { display: block; font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+tr.variant .note { color: var(--variant-ink); } tr.differs .note { color: var(--differs-ink); }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; padding: 8px 16px; font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; border: 1px solid var(--line); }
+
+.why { padding: 14px 16px 6px; }
+.why h3 { margin: 0 0 2px; font-size: 15px; }
+.why p.sub { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+.bars { display: grid; grid-template-columns: 140px minmax(0, 1fr) 56px; gap: 6px 10px; align-items: center; font-size: 13.5px; }
+.bar { position: relative; height: 14px; background: var(--bar-track); border-radius: 3px; }
+.bar::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--muted); opacity: .5; }
+.bar i { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+.bar i.pos { left: 50%; background: var(--pos); }
+.bar i.neg { right: 50%; background: var(--neg); }
+.num { font-family: var(--mono); font-size: 12.5px; text-align: right; font-variant-numeric: tabular-nums; }
+.num.pos { color: var(--pos); } .num.neg { color: var(--neg); }
+.sum { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 16px 16px; border-top: 1px solid var(--line); }
+.act { flex: 1 1 140px; border: 0; border-radius: 9px; padding: 11px 14px; font-weight: 600; cursor: pointer; color: var(--act-ink); display: flex; justify-content: space-between; align-items: center; }
+.act kbd { font-family: var(--mono); font-size: 12px; font-weight: 500; background: rgba(127,127,127,.25); border-radius: 4px; padding: 1px 6px; }
+.act.same { background: var(--same); } .act.different { background: var(--diff); } .act.unsure { background: var(--unsure); }
+.act:focus-visible, .ghost:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.nav { display: flex; gap: 8px; flex: 1 1 100%; justify-content: space-between; color: var(--muted); font-size: 12.5px; align-items: center; }
+.nav .ghost { padding: 4px 10px; font-size: 13px; }
+.done { padding: 40px 16px; text-align: center; color: var(--muted); }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; }
+  .queue ol { max-height: 180px; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  table.cmp th.label { width: 28%; }
+  table.cmp th, table.cmp td { padding: 7px 8px; }
+  td.val { font-size: 14px; }
+  .bars { grid-template-columns: 92px minmax(0, 1fr) 46px; }
+  .act { flex-basis: 30%; padding: 10px; }
+  .act kbd { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Household duplicate review</h1>
+      <div class="source" id="source">Loading the registration list...</div>
+    </div>
+    <div class="tools">
+      <a class="ghost" id="export" href="/api/export">Export decisions (CSV)</a>
+      <button class="ghost" id="theme" type="button" aria-label="Switch colour theme">Theme</button>
+    </div>
+  </header>
+
+  <section class="stats" aria-label="Summary">
+    <div class="stat"><b id="s-queue">-</b><span>pairs for a person to decide</span>
+      <div class="progress" id="progress" aria-hidden="true"></div></div>
+    <div class="stat"><b id="s-done">-</b><span id="s-done-sub">decided</span></div>
+    <div class="stat"><b id="s-auto">-</b><span>certain matches, merged without review</span></div>
+    <div class="stat"><b id="s-non">-</b><span id="s-non-sub">certain non-matches, hidden</span></div>
+  </section>
+
+  <div class="layout">
+    <aside class="queue">
+      <h2>Queue, most uncertain first</h2>
+      <ol id="queue"></ol>
+    </aside>
+    <main class="card" id="card" aria-live="polite"></main>
+  </div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const fmt = (n) => n.toLocaleString("en-US");
+const AR = /[؀-ۿ]/;
+const LABELS = {given_name: "Given name", father_name: "Father's name", family_name: "Family name",
+  date_of_birth: "Date of birth", phone: "Phone", village: "Village", district: "District",
+  household_size: "Household size", team: "Registered by"};
+let queue = [], current = 0, pair = null, summary = null;
+
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+}
+async function getJSON(url, opts) {
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error(url + " " + r.status);
+  return r.json();
+}
+
+function renderSummary() {
+  const s = summary, d = s.decided, done = d.same + d.different + d.unsure;
+  $("#source").textContent = s.source + ". All data synthetic.";
+  $("#s-queue").textContent = fmt(s.queue);
+  $("#s-done").textContent = fmt(done) + " / " + fmt(s.queue);
+  $("#s-done-sub").textContent = `decided: ${d.same} same, ${d.different} different, ${d.unsure} unsure`;
+  $("#s-auto").textContent = fmt(s.auto_match);
+  $("#s-non").textContent = fmt(s.auto_non_match);
+  $("#s-non-sub").textContent = `certain non-matches hidden (of ${fmt(s.possible_pairs)} possible pairs)`;
+  const pct = (n) => (s.queue ? 100 * n / s.queue : 0) + "%";
+  $("#progress").innerHTML = `<i style="width:${pct(d.same)};background:var(--same)"></i>` +
+    `<i style="width:${pct(d.different)};background:var(--diff)"></i>` +
+    `<i style="width:${pct(d.unsure)};background:var(--unsure)"></i>`;
+}
+
+function renderQueue() {
+  $("#queue").innerHTML = queue.map((q) =>
+    `<li data-k="${q.k}" class="${q.k === current ? "on" : ""}">
+       <span class="dot ${q.decision || ""}"></span>
+       <span class="names"><bdi>${esc(q.a)}</bdi> / <bdi>${esc(q.b)}</bdi></span>
+       <span class="p">${q.p.toFixed(2)}</span></li>`).join("");
+  const on = $("#queue li.on"), list = $("#queue");
+  if (on) {  // scroll the list only, never the page
+    if (on.offsetTop < list.scrollTop) list.scrollTop = on.offsetTop;
+    else if (on.offsetTop + on.offsetHeight > list.scrollTop + list.clientHeight)
+      list.scrollTop = on.offsetTop + on.offsetHeight - list.clientHeight;
+  }
+}
+
+function cell(v) {
+  if (v === "" || v == null) return `<td class="val"><span class="empty">not recorded</span></td>`;
+  const rtl = AR.test(v);
+  return `<td class="val"${rtl ? ' dir="rtl" lang="ar"' : ' dir="ltr"'}>${esc(v)}</td>`;
+}
+
+function renderPair() {
+  const p = pair, card = $("#card");
+  if (!p) { card.innerHTML = `<div class="done">The queue is empty. Every candidate pair was certain enough to decide automatically.</div>`; return; }
+  const rows = p.fields.map((f) => {
+    const c = p.compare[f] || {status: "info", note: ""};
+    const note = c.note ? `<span class="note">${esc(c.note)}</span>` : "";
+    return `<tr class="${c.status}"><th class="label" scope="row">${LABELS[f] || f}${note}</th>${cell(p.a[f])}${cell(p.b[f])}</tr>`;
+  }).join("");
+  const max = Math.max(4, ...p.contributions.map((c) => Math.abs(c.value)));
+  const bars = p.contributions.map((c) => {
+    const w = (50 * Math.min(Math.abs(c.value), max) / max).toFixed(1);
+    const cls = c.value >= 0 ? "pos" : "neg";
+    return `<span>${esc(c.label)}</span><span class="bar"><i class="${cls}" style="width:${w}%"></i></span>` +
+      `<span class="num ${cls}">${c.value >= 0 ? "+" : ""}${c.value.toFixed(1)}</span>`;
+  }).join("");
+  let total = p.baseline + p.contributions.reduce((a, c) => a + c.value, 0);
+  if (Math.abs(total) < 0.05) total = 0;
+  const pct = (100 * p.probability).toFixed(0);
+  const decided = p.decision ? `<span class="pill ${p.decision}">decided: ${p.decision}</span>` : `<span class="pill">not decided</span>`;
+  card.innerHTML = `
+    <div class="card-head">
+      <div class="score"><b>${pct}%</b><span>chance these are the same household</span></div>
+      <div>${decided}</div>
+    </div>
+    ${p.given_names_differ ? `<div class="policy">The given names clearly differ. Pairs like this always come to a person: twins and siblings who share a phone and an address look like one household on every other field.</div>` : ""}
+    <table class="cmp">
+      <thead><tr><th class="label"></th><th>Record ${esc(p.a.record_id)}</th><th>Record ${esc(p.b.record_id)}</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="legend"><span><i style="background:var(--variant-bg)"></i>same value, written differently</span>
+      <span><i style="background:var(--differs-bg)"></i>differs</span><span><i style="background:var(--surface-2)"></i>missing on one side</span></div>
+    <section class="why">
+      <h3>Why this score</h3>
+      <p class="sub">Each field pushes towards "same" (right) or "different" (left), in log-odds, measured from a pair halfway between a typical match and a typical non-match (${p.baseline >= 0 ? "+" : ""}${p.baseline.toFixed(1)}). Total ${total >= 0 ? "+" : ""}${total.toFixed(1)} = ${pct}%.</p>
+      <div class="bars">${bars}</div>
+    </section>
+    <div class="actions">
+      <button class="act same" data-d="same" type="button">Same household <kbd>S</kbd></button>
+      <button class="act different" data-d="different" type="button">Different <kbd>D</kbd></button>
+      <button class="act unsure" data-d="unsure" type="button">Unsure <kbd>U</kbd></button>
+      <div class="nav">
+        <button class="ghost" id="prev" type="button">&larr; Previous <kbd>K</kbd></button>
+        <span>Pair ${p.k + 1} of ${fmt(queue.length)} &middot; Z clears a decision</span>
+        <button class="ghost" id="next" type="button">Next <kbd>J</kbd> &rarr;</button>
+      </div>
+    </div>`;
+  card.querySelectorAll(".act").forEach((b) => b.addEventListener("click", () => decide(b.dataset.d)));
+  $("#prev").addEventListener("click", () => go(current - 1));
+  $("#next").addEventListener("click", () => go(current + 1));
+}
+
+async function go(k) {
+  if (!queue.length) { pair = null; renderPair(); return; }
+  current = Math.max(0, Math.min(queue.length - 1, k));
+  pair = await getJSON("/api/pair/" + current);
+  renderPair(); renderQueue();
+  try { localStorage.setItem("dedupe-pos", String(current)); } catch (e) {}
+}
+
+async function decide(d) {
+  if (!pair) return;
+  summary = await getJSON("/api/decide", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({k: pair.k, decision: d})});
+  queue[pair.k].decision = d;
+  renderSummary();
+  if (d === null) { pair.decision = null; renderPair(); renderQueue(); return; }
+  const next = queue.findIndex((q, i) => i > pair.k && !q.decision);
+  go(next === -1 ? pair.k + 1 : next);
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (k === "s" || k === "1") decide("same");
+  else if (k === "d" || k === "2") decide("different");
+  else if (k === "u" || k === "3") decide("unsure");
+  else if (k === "z") decide(null);
+  else if (k === "j" || k === "arrowright") go(current + 1);
+  else if (k === "k" || k === "arrowleft") go(current - 1);
+  else return;
+  e.preventDefault();
+});
+$("#queue").addEventListener("click", (e) => { const li = e.target.closest("li"); if (li) go(Number(li.dataset.k)); });
+
+function applyTheme(t) {
+  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+}
+$("#theme").addEventListener("click", () => {
+  const dark = document.documentElement.dataset.theme === "dark" ||
+    (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
+  const t = dark ? "light" : "dark";
+  applyTheme(t);
+  try { localStorage.setItem("dedupe-theme", t); } catch (e) {}
+});
+try { applyTheme(localStorage.getItem("dedupe-theme")); } catch (e) {}
+
+(async function init() {
+  [summary, queue] = await Promise.all([getJSON("/api/summary"), getJSON("/api/queue")]);
+  renderSummary();
+  let start = queue.findIndex((q) => !q.decision);
+  try {
+    const raw = localStorage.getItem("dedupe-pos");
+    if (raw !== null && Number(raw) >= 0 && Number(raw) < queue.length) start = Number(raw);
+  } catch (e) {}
+  const hash = location.hash.match(/^#pair-(\d+)$/);
+  if (hash) start = Number(hash[1]) - 1;
+  go(start === -1 ? 0 : start);
+})();
+</script>
+</body>
+</html>
