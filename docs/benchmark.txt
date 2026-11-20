@@ -1,0 +1,81 @@
+Held-out set: synthetic, seed 2, 10000 records (model trained on seed 1, different households)
+True duplicate pairs: 3858  (Arabic-to-Latin: 1513)
+Machine: Windows AMD64, Python 3.12.10, one process
+------------------------------------------------------------------------
+Time to process 10000 records: 14.1 s
+  prepare              2.70 s
+  blocking             1.34 s
+  compare_and_score    8.68 s
+  cluster              1.36 s
+  total               14.07 s
+------------------------------------------------------------------------
+Blocking: 276,688 candidate pairs instead of 49,995,000 (0.55%)
+  blocking recall (true pairs that reach the scorer): 0.9982  missed: 7
+  pass gf: alone finds 0.948 of true pairs
+  pass ny: alone finds 0.929 of true pairs
+  pass ph: alone finds 0.776 of true pairs
+  pass fv: alone finds 0.782 of true pairs
+------------------------------------------------------------------------
+Levenshtein baseline: tuning its threshold on the training set ...
+
+method                                       precision  recall     F1  AR-LA recall
+Exact name + date of birth                       1.000   0.029  0.056         0.000
+Levenshtein on full name >= 0.84                 0.295   0.272  0.283         0.000
+This pipeline, pairs scored >= 0.5               0.989   0.968  0.979         0.957
+This pipeline, after clustering                  0.992   0.971  0.981         0.954
+------------------------------------------------------------------------
+Review bands (thresholds 0.033 / 0.737, chosen on training pairs):
+  certain match, not shown: 3,626   to review: 866   certain non-match, not shown: 272,196
+  certain-match band alone: precision 0.999, recall 0.939
+  after a reviewer decides the whole queue correctly: precision 0.999, recall 0.992, F1 0.995
+  true pairs hidden in the certain non-match band: 24
+------------------------------------------------------------------------
+Reviewer workload: pairs a person must look at to reach a pair recall
+  recall     model queue   Levenshtein order   unranked candidates
+  0.80                 0         not reached               221,350
+  0.90                 0         not reached               249,019
+  0.95                58         not reached               262,854
+  0.98               239         not reached               271,154
+  (model queue: the 3,626 certain matches are accepted without review)
+------------------------------------------------------------------------
+Hard negatives (different households built to look alike):
+  neg:namesake                    0 of  534 pairs wrongly merged
+  neg:namesake_same_father        1 of  159 pairs wrongly merged
+  neg:sibling                     4 of  621 pairs wrongly merged
+  neg:twin                        2 of  126 pairs wrongly merged
+------------------------------------------------------------------------
+Clustering (automatic, before any review):
+  plain connected pairs >= 0.5               precision 0.978  recall 0.983  F1 0.980  largest 7  refused 0
+  with chaining guard                        precision 0.986  recall 0.979  F1 0.983  largest 4  refused 14
+  with guard, given-name pairs held (default) precision 0.992  recall 0.971  F1 0.981  largest 4  refused 56
+------------------------------------------------------------------------
+Phonetic key on spelling variants from the name tables (same name, two spellings):
+  Latin-Latin pairs (191): Soundex agrees 0.728, this key agrees 0.995
+  Arabic-Latin pairs (193): this key agrees 0.995 (Soundex cannot read Arabic)
+------------------------------------------------------------------------
+Wrongly merged (highest score first):
+  p=0.858  Hussein | Omar | Masri | 22/3/1964 | 00961 78102469 | Khiam | 4
+           Hassan | Omar | Al-Masri | 1968-08-02 | 78102469 | El Khiam | 4
+           truth: neg:sibling / dup:latin,swapped,household_pm1
+  p=0.768  Abdellah | Mohammad | Sorour | 1994-10-10 | - | Dures | 6
+           Abdallah | Mhammad | Sorour | 1994-10-16 | 03 773 539 | Douris | 5
+           truth: dup:added_father,no_phone / base
+  p=0.752  Mohammad | - | Hamdan | 14/3/1971 | 00961 79293499 | Bebnine | 6
+           Mohammad | Abdullah | Hamdan | 1971 | +961 70 744 130 | Bibnin | 5
+           truth: base / base
+  p=0.741  Soaad | Waleed | Srour | 24/08/1973 | - | El Khiam | 5
+           Mohammad | Waleed | Sorour | 24/8/1973 | 96178358364 | Khiam | 1
+           truth: neg:twin / base
+Missed duplicates (highest score first):
+  p=0.998  Usrma | Ziyad | Mousa | 1968-05-22 | 03625910 | Halbah | 6
+           Oussama | Ziyad | Moussa | 22/05/1968 | 9613625910 | Halbah | 6
+           truth: dup:typo / base
+  p=0.997  Georges | Mhammad | Khouri | 01/11/1975 | +961 70 175 994 | Khiam | 6
+           جورج | محمد | الخوري | ١٩٧٥-١١-٠١ | 00961 70175994 | الخيام | 6
+           truth: dup:latin,typo / base
+  p=0.997  اممد | رامي | طالب | ٢٦/١٢/١٩٩٧ | ٧٦٢٤٥٤٧٥ | دورس | 7
+           Ahmed | Ramy | Talib | 26/12/1997 | 76 245 475 | Dures | 7
+           truth: dup:arabic,typo / dup:respelled
+  p=0.997  Ahmad | Ramy | Taleb | 26/12/1997 | 76245475 | Douris | 7
+           اممد | رامي | طالب | ٢٦/١٢/١٩٩٧ | ٧٦٢٤٥٤٧٥ | دورس | 7
+           truth: base / dup:arabic,typo

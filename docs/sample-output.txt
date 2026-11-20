@@ -1,0 +1,23 @@
+$ dedupe generate --n 10000 --out records.csv
+Wrote 10000 synthetic records to records.csv
+
+$ dedupe run records.csv --out matches.csv
+Read 10,000 records
+Compared 272,369 candidate pairs out of 49,995,000 possible
+  certain matches:     3,623
+  for a reviewer:      935
+  certain non-matches: 267,811 (not written)
+Households with more than one record: 2,071
+Wrote matches.csv and matches_households.csv in 11.0 s
+
+$ head -5 matches.csv
+record_a,record_b,probability,band,same_cluster,why_name,why_father,why_dob,why_phone,why_location,why_household
+NBR-000002,NBR-005964,1.0000,match,yes,+2.81,+1.94,+3.51,+3.49,+1.22,+1.38
+NBR-000005,NBR-006571,1.0000,match,yes,+2.81,+1.94,+3.51,+3.49,+1.22,+1.38
+NBR-000009,NBR-002225,1.0000,match,yes,+2.81,+1.94,+3.51,+3.49,+1.22,+1.38
+NBR-000011,NBR-004050,1.0000,match,yes,+2.74,+1.85,+3.51,+3.49,+1.22,-0.10
+
+$ grep review matches.csv | head -3
+NBR-002908,NBR-007498,0.9969,review,no,-3.20,+1.94,+3.51,+3.49,+1.22,+1.38
+NBR-003326,NBR-004087,0.9969,review,no,-3.20,+1.94,+3.51,+3.49,+1.22,+1.38
+NBR-004965,NBR-009934,0.9969,review,yes,-2.97,+1.73,+3.51,+3.49,+1.22,+1.38
