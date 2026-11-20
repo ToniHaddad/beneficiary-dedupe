@@ -100,6 +100,15 @@ def test_chaining_guard_keeps_strangers_apart():
     assert len(plain.groups()) == 1
 
 
+def test_held_pair_is_not_merged_on_its_own():
+    # 0 and 1 are twins: high score, but given names differ, so the pair is held.
+    scored = {(0, 1): 0.95, (0, 2): 0.99}
+    result = cluster(3, dict(scored), lambda i, j: 0.01, hold={(0, 1)})
+    labels = result.labels
+    assert labels[0] == labels[2] and labels[0] != labels[1]
+    assert ("held for review" in r[2] for r in result.refused)
+
+
 def test_cluster_size_cap():
     scored = {(i, i + 1): 0.99 for i in range(9)}
     result = cluster(10, dict(scored), lambda i, j: 0.99, guard=0.0, max_size=4)

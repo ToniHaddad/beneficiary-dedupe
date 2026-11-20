@@ -234,15 +234,16 @@ def main(n: int = 10_000) -> None:
     def score_fn(i: int, j: int) -> float:
         return float(model.predict(compare(res.prepared[i], res.prepared[j])[None, :])[0])
 
-    plain = cluster(n, dict(scored), score_fn, guard=0.0, max_size=10_000)
-    plain_pairs = {p for m in plain.groups().values() for p in itertools.combinations(sorted(m), 2)}
-    pp, rp, fp = prf(plain_pairs, truth)
-    pg, rg, fg = prf(pred_cluster, truth)
-    print("Chaining guard:")
-    print(f"  without guard: precision {pp:.3f}, recall {rp:.3f}, F1 {fp:.3f}, "
-          f"largest cluster {max(len(m) for m in plain.groups().values())}")
-    print(f"  with guard:    precision {pg:.3f}, recall {rg:.3f}, F1 {fg:.3f}, "
-          f"largest cluster {max(len(m) for m in groups.values())}, merges refused {len(res.clusters.refused)}")
+    def report(label: str, result) -> None:
+        pairs = {p for m in result.groups().values() for p in itertools.combinations(sorted(m), 2)}
+        p_, r_, f_ = prf(pairs, truth)
+        print(f"  {label:<42} precision {p_:.3f}  recall {r_:.3f}  F1 {f_:.3f}  "
+              f"largest {max(len(m) for m in result.groups().values())}  refused {len(result.refused)}")
+
+    print("Clustering (automatic, before any review):")
+    report("plain connected pairs >= 0.5", cluster(n, dict(scored), score_fn, guard=0.0, max_size=10_000))
+    report("with chaining guard", cluster(n, dict(scored), score_fn))
+    report("with guard, given-name pairs held (default)", res.clusters)
     print(line)
 
     ka = key_agreement()

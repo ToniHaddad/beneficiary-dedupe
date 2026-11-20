@@ -34,12 +34,17 @@ def cluster(
     threshold: float = 0.5,
     guard: float = 0.02,
     max_size: int = 6,
+    hold: set[tuple[int, int]] | None = None,
 ) -> ClusterResult:
     """Greedy merging, strongest pairs first, with a complete-link guard.
 
     ``scored_pairs`` maps (i, j), i < j, to a match probability.
     ``score_fn(i, j)`` scores a pair that blocking did not produce.
+    ``hold`` lists pairs that are never used as the link that merges two
+    groups (for example two different given names): such a pair only ends
+    up together through other strong links, or through a reviewer.
     """
+    hold = hold or set()
     members: dict[int, list[int]] = {i: [i] for i in range(n)}
     label = list(range(n))
     refused: list[tuple[int, int, str]] = []
@@ -57,6 +62,9 @@ def cluster(
             continue
         if len(members[a]) + len(members[b]) > max_size:
             refused.append((i, j, "size"))
+            continue
+        if (i, j) in hold:
+            refused.append((i, j, "held for review"))
             continue
         weakest = min(score(x, y) for x in members[a] for y in members[b])
         if weakest < guard:

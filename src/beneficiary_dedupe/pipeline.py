@@ -10,7 +10,7 @@ import numpy as np
 from .blocking import BlockingStats, candidate_pairs
 from .cluster import ClusterResult, cluster
 from .features import FIELDS, compare, feature_matrix
-from .model import Model
+from .model import GIVEN_DIFFERS, Model
 from .records import Prepared, prepare
 
 
@@ -66,7 +66,8 @@ def run(rows: list[dict], model: Model | None = None, guard: float = 0.02) -> Ru
     def score_fn(i: int, j: int) -> float:
         return float(model.predict(compare(prepared[i], prepared[j])[None, :])[0])
 
-    clusters = cluster(len(prepared), scored, score_fn, threshold=0.5, guard=guard)
+    hold = {pair for pair, x in zip(pairs, X) if x[GIVEN_DIFFERS] > 0}
+    clusters = cluster(len(prepared), scored, score_fn, threshold=0.5, guard=guard, hold=hold)
     t["cluster"] = time.perf_counter() - s
     t["total"] = time.perf_counter() - start
     return RunResult(rows, prepared, pairs, X, probs, model, clusters, stats, t)
