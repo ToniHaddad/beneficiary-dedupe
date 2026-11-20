@@ -28,8 +28,8 @@ class RunResult:
 
     def band_counts(self) -> dict[str, int]:
         counts = {"match": 0, "review": 0, "non-match": 0}
-        for p in self.probs:
-            counts[self.model.band(float(p))] += 1
+        for p, x in zip(self.probs, self.X):
+            counts[self.model.band(float(p), x)] += 1
         return counts
 
     def explain(self, k: int) -> dict:
@@ -37,13 +37,13 @@ class RunResult:
         p = float(self.probs[k])
         return {
             "probability": p,
-            "band": self.model.band(p),
-            "baseline": self.model.bias,
+            "band": self.model.band(p, self.X[k]),
+            "baseline": self.model.baseline,
             "contributions": self.model.contributions(self.X[k]),
         }
 
 
-def run(rows: list[dict], model: Model | None = None, guard: float = 0.2) -> RunResult:
+def run(rows: list[dict], model: Model | None = None, guard: float = 0.02) -> RunResult:
     model = model or Model.load()
     t = {}
     start = time.perf_counter()
@@ -78,7 +78,7 @@ def matches_table(result: RunResult) -> list[dict]:
     labels = result.clusters.labels
     for k, (i, j) in enumerate(result.pairs):
         p = float(result.probs[k])
-        band = result.model.band(p)
+        band = result.model.band(p, result.X[k])
         if band == "non-match":
             continue
         contrib = result.model.contributions(result.X[k])

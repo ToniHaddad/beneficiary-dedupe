@@ -32,7 +32,7 @@ def cluster(
     scored_pairs: dict[tuple[int, int], float],
     score_fn: Callable[[int, int], float],
     threshold: float = 0.5,
-    guard: float = 0.2,
+    guard: float = 0.02,
     max_size: int = 6,
 ) -> ClusterResult:
     """Greedy merging, strongest pairs first, with a complete-link guard.

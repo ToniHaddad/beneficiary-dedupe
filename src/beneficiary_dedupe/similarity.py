@@ -20,7 +20,7 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from rapidfuzz.distance import JaroWinkler
+from rapidfuzz.distance import JaroWinkler, Levenshtein
 
 from .normalize import (
     ARABIC_TO_KEY, ARTICLE_EXCEPTIONS, LATIN_SINGLE, has_arabic,
@@ -143,7 +143,12 @@ def cross_script_similarity(arabic_sound: str, latin_sound: str) -> float:
     return max(0.0, 1.0 - 2.0 * prev[m] / weight)
 
 @lru_cache(maxsize=200_000)
-def _same_script(a_sound: str, b_sound: str, a_text: str, b_text: str) -> float:
+def _same_script(a_sound: str, b_sound: str, a_text: str, b_text: str, arabic: bool) -> float:
+    if arabic:
+        # Arabic spells a name one way once normalised; a one-letter
+        # difference (محمد / محمود) is usually a different name, so use plain
+        # edit distance, which punishes it more than Jaro-Winkler does.
+        return Levenshtein.normalized_similarity(a_text, b_text)
     by_sound = JaroWinkler.normalized_similarity(a_sound.lower(), b_sound.lower())
     by_text = JaroWinkler.normalized_similarity(a_text, b_text)
     return max(by_sound, by_text)
@@ -159,7 +164,7 @@ def name_similarity(a_text: str, a_sound: str, a_arabic: bool,
     if not a_sound or not b_sound:
         return 0.0
     if a_arabic == b_arabic:
-        return _same_script(a_sound, b_sound, a_text, b_text)
+        return _same_script(a_sound, b_sound, a_text, b_text, a_arabic)
     if a_arabic:
         return cross_script_similarity(a_sound, b_sound)
     return cross_script_similarity(b_sound, a_sound)

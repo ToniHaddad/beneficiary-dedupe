@@ -22,6 +22,8 @@ import numpy as np
 
 from .features import FEATURE_NAMES, FEATURES, FIELDS
 
+GIVEN_DIFFERS = FEATURE_NAMES.index("given_differs")
+
 DEFAULT_MODEL = Path(__file__).with_name("model.json")
 
 
@@ -36,6 +38,20 @@ class Model:
     upper: float = 0.97   # at or above: certain match, kept out of the queue
     lower: float = 0.03   # at or below: certain non-match, kept out of the queue
     info: dict = field(default_factory=dict)
+    # Reference pair the explanation is measured from: halfway between the
+    # average true match and the average non-match in training. A field
+    # that looks like a match pushes up, one that looks like a non-match
+    # pushes down, whichever way the features happen to be encoded.
+    reference: np.ndarray | None = None
+
+    @property
+    def ref(self) -> np.ndarray:
+        return self.reference if self.reference is not None else np.zeros_like(self.weights)
+
+    @property
+    def baseline(self) -> float:
+        """Log-odds of the reference pair; the explanation starts here."""
+        return float(self.bias + self.weights @ self.ref)
 
     # ---------------------------------------------------------- scoring
     def logit(self, X: np.ndarray) -> np.ndarray:
@@ -45,17 +61,25 @@ class Model:
         return _sigmoid(self.logit(X))
 
     def contributions(self, x: np.ndarray) -> dict[str, float]:
-        """Per-field log-odds contributions for one pair; they sum to logit - bias."""
+        """Per-field log-odds contributions; baseline + their sum = the pair's logit."""
         out = dict.fromkeys(FIELDS, 0.0)
-        for (fld, _), w, v in zip(FEATURES, self.weights, x):
-            out[fld] += float(w * v)
+        for (fld, _), w, v, r in zip(FEATURES, self.weights, x, self.ref):
+            out[fld] += float(w * (v - r))
         return out
 
-    def band(self, p: float) -> str:
-        if p >= self.upper:
-            return "match"
+    def band(self, p: float, x: np.ndarray | None = None) -> str:
+        """Which pile a pair goes to.
+
+        Policy on top of the score: a pair whose given names clearly differ
+        is never accepted without a person looking at it. Twins and siblings
+        who share a phone and an address look like one household on every
+        other field, and merging two real households removes one of them
+        from assistance.
+        """
         if p <= self.lower:
             return "non-match"
+        if p >= self.upper and not (x is not None and x[GIVEN_DIFFERS] > 0):
+            return "match"
         return "review"
 
     # ---------------------------------------------------------- fitting
@@ -74,7 +98,8 @@ class Model:
             w -= step
             if np.abs(step).max() < 1e-8:
                 break
-        return cls(weights=w[:-1], bias=float(w[-1]))
+        reference = 0.5 * (X[y == 1].mean(axis=0) + X[y == 0].mean(axis=0))
+        return cls(weights=w[:-1], bias=float(w[-1]), reference=reference)
 
     def choose_bands(self, X: np.ndarray, y: np.ndarray, max_auto_errors: float = 0.005) -> None:
         """Pick the two thresholds on training pairs.
@@ -103,6 +128,7 @@ class Model:
             "features": FEATURE_NAMES,
             "weights": [round(float(w), 6) for w in self.weights],
             "bias": round(self.bias, 6),
+            "reference": [round(float(r), 6) for r in self.ref],
             "upper": self.upper,
             "lower": self.lower,
             "info": self.info,
@@ -116,4 +142,5 @@ class Model:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
         if data["features"] != FEATURE_NAMES:
             raise ValueError("model.json was trained on a different feature list; run `dedupe train`")
-        return cls(np.array(data["weights"]), data["bias"], data["upper"], data["lower"], data.get("info", {}))
+        return cls(np.array(data["weights"]), data["bias"], data["upper"], data["lower"], data.get("info", {}),
+                   np.array(data["reference"]))

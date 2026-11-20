@@ -182,8 +182,9 @@ def main(n: int = 10_000) -> None:
     print(line)
 
     bands = res.band_counts()
-    auto = {p for p, s in scored.items() if model.band(s) == "match"}
-    review = {p for p, s in scored.items() if model.band(s) == "review"}
+    band_of = {p: model.band(float(s), x) for p, s, x in zip(res.pairs, res.probs, res.X)}
+    auto = {p for p, b in band_of.items() if b == "match"}
+    review = {p for p, b in band_of.items() if b == "review"}
     print(f"Review bands (thresholds {model.lower:.3f} / {model.upper:.3f}, chosen on training pairs):")
     print(f"  certain match, not shown: {bands['match']:,}   to review: {bands['review']:,}   "
           f"certain non-match, not shown: {bands['non-match']:,}")
@@ -192,11 +193,13 @@ def main(n: int = 10_000) -> None:
     print(f"  certain-match band alone: precision {p_auto:.3f}, recall {r_auto:.3f}")
     print(f"  after a reviewer decides the whole queue correctly: precision {p_final:.3f}, "
           f"recall {r_final:.3f}, F1 {f_final:.3f}")
-    hidden = len({p for p, s in scored.items() if model.band(s) == "non-match"} & truth)
+    hidden = len({p for p, b in band_of.items() if b == "non-match"} & truth)
     print(f"  true pairs hidden in the certain non-match band: {hidden}")
     print(line)
 
-    ranked_model = [p for p, _ in sorted(scored.items(), key=lambda kv: -kv[1])]
+    # the reviewer sees the auto-accepted pairs as done, then works the queue
+    # from the most likely match down
+    ranked_model = sorted(auto) + [p for p, _ in sorted(((p, scored[p]) for p in review), key=lambda kv: -kv[1])]
     ranked_lev = [p for p, _ in sorted(lev_scores.items(), key=lambda kv: -kv[1])]
     n_auto = len(auto)
     print("Reviewer workload: pairs a person must look at to reach a pair recall")

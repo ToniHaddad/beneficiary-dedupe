@@ -10,7 +10,7 @@ key, so several independent passes are used and their union is kept:
 * ``ny``: phonetic code of the given OR family name plus birth year
   (catches a typing error in the other name, and a dropped father's name).
 * ``ph``: the normalised phone number (catches badly mangled names).
-* ``fv``: phonetic code of the given OR family name plus village skeleton
+* ``fv``: phonetic code of the family name plus village skeleton
   (catches a wrong birth year together with a changed phone).
 
 Blocks larger than ``max_block`` are skipped and counted, never silently:
@@ -38,8 +38,6 @@ def block_keys(r: Prepared) -> set[str]:
         keys.add("ph:" + r.phone)
     if f and r.village_sk:
         keys.add(f"fv:{f}:{r.village_sk}")
-    if g and r.village_sk:
-        keys.add(f"fv:{g}:{r.village_sk}")
     return keys
 
 
