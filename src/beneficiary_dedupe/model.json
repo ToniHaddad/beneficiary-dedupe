@@ -1,0 +1,50 @@
+{
+  "features": [
+    "given_sim",
+    "family_sim",
+    "both_names_high",
+    "order_swapped",
+    "father_sim",
+    "father_missing",
+    "dob_exact",
+    "dob_swapped",
+    "dob_year_only",
+    "dob_same_year",
+    "dob_near_year",
+    "dob_missing",
+    "phone_same",
+    "phone_missing",
+    "village_same",
+    "district_same",
+    "household_same",
+    "household_off_by_one"
+  ],
+  "weights": [
+    7.453209,
+    5.113422,
+    2.412722,
+    0.392774,
+    6.294629,
+    4.825869,
+    7.185612,
+    5.264823,
+    5.548142,
+    3.112235,
+    2.5167,
+    0.0,
+    6.027041,
+    1.83507,
+    2.704475,
+    0.715497,
+    3.205094,
+    1.704137
+  ],
+  "bias": -29.244597,
+  "upper": 0.7497414085578366,
+  "lower": 0.028805810793716788,
+  "info": {
+    "trained_on": "synthetic, seed 1, 10000 records",
+    "training_pairs": 444365,
+    "training_matches": 3854
+  }
+}
