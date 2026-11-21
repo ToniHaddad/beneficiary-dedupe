@@ -1,0 +1,85 @@
+Held-out set: data/heldout.csv (frozen, seed 2), 10000 synthetic records (model trained on seed 1, different households)
+True duplicate pairs: 3854  (Arabic-to-Latin: 1509, home centre to shelter: 671)
+Machine: Windows AMD64, Python 3.12.10, one process
+------------------------------------------------------------------------
+Time to process 10000 records: 3.7 s
+  prepare              0.85 s
+  blocking             0.30 s
+  compare_and_score    2.37 s
+  cluster              0.16 s
+  total                3.68 s
+------------------------------------------------------------------------
+Blocking: 254,975 candidate pairs instead of 49,995,000 (0.51%)
+  blocking recall (true pairs that reach the scorer): 1.0000  missed: 0
+  pass gf: alone finds 0.947 of true pairs
+  pass ny: alone finds 0.909 of true pairs
+  pass ph: alone finds 0.781 of true pairs
+  pass fv: alone finds 0.708 of true pairs
+------------------------------------------------------------------------
+Levenshtein baseline: tuning its threshold on the training set ...
+
+method                                       precision  recall     F1  AR-LA rec  shelter rec
+Exact name + date of birth                       1.000   0.028  0.054      0.000        0.013
+Levenshtein on full name >= 0.84                 0.297   0.275  0.285      0.000        0.255
+This pipeline, pairs scored >= 0.5               0.986   0.973  0.979      0.964        0.964
+This pipeline, after clustering                  0.993   0.972  0.983      0.954        0.966
+------------------------------------------------------------------------
+Displaced households, home-centre record against shelter record (671 true pairs):
+  certain match 621, to review 47, certain non-match 3, never compared 0
+  put in one household automatically: 0.966
+------------------------------------------------------------------------
+Review bands (thresholds 0.047 / 0.707, chosen on training pairs):
+  certain match, not shown: 3,663   to review: 743   certain non-match, not shown: 250,569
+  certain-match band alone: precision 0.997, recall 0.948
+  after a reviewer decides the whole queue correctly: precision 0.997, recall 0.995, F1 0.996
+  true pairs hidden in the certain non-match band: 19
+------------------------------------------------------------------------
+Reviewer workload: pairs a person must look at to reach a pair recall
+  recall     model queue   Levenshtein order   unranked candidates
+  0.80                 0         not reached               203,980
+  0.90                 0         not reached               229,478
+  0.95                 9         not reached               242,226
+  0.98               198         not reached               249,876
+  (model queue: the 3,663 certain matches are accepted without review)
+------------------------------------------------------------------------
+Hard negatives (different households built to look alike):
+  neg:namesake                    6 of  472 pairs wrongly merged
+  neg:namesake_same_father        0 of  134 pairs wrongly merged
+  neg:sibling                     3 of  653 pairs wrongly merged
+  neg:twin                       10 of  135 pairs wrongly merged
+------------------------------------------------------------------------
+Clustering (automatic, before any review):
+  plain connected pairs >= 0.5               precision 0.980  recall 0.984  F1 0.982  largest 6  refused 0
+  with chaining guard                        precision 0.984  recall 0.981  F1 0.982  largest 6  refused 10
+  with guard, given-name pairs held (default) precision 0.993  recall 0.972  F1 0.983  largest 5  refused 74
+------------------------------------------------------------------------
+Phonetic key on spelling variants from the name tables (same name, two spellings):
+  Latin-Latin pairs (191): Soundex agrees 0.728, this key agrees 0.995
+  Arabic-Latin pairs (193): this key agrees 0.995 (Soundex cannot read Arabic)
+------------------------------------------------------------------------
+Wrongly merged (highest score first):
+  p=1.000  Waleed | Walid | Younis | 1993-08-28 | 76-946274 | Burj Shamali | 4
+           Ali | Waleed | Younis | 1993-08-28 | +961 76 946 274 | Borj Chemali | 3
+           truth: neg:twin / base
+  p=0.977  Waleed | Walid | Younis | 1993-08-28 | 76-946274 | Burj Shamali | 4
+           Aly | - | Younes | 1993 | 76 946 274 | Qobbeh | 3
+           truth: neg:twin / dup:no_father,year_only,displaced
+  p=0.972  Ali | Waleed | Younes | 28/08/1993 | - | Burj el Shemali | 3
+           Waleed | Walid | Younis | 1993-08-28 | 76-946274 | Burj Shamali | 4
+           truth: dup:no_phone / neg:twin
+  p=0.970  Mhammad | Hasan | Darwich | 02/04/1985 | 9613861441 | Khiam | 4
+           Ahmed | Hasan | Darwiche | 2/4/1985 | +961 3 861 441 | Khiam | 1
+           truth: neg:twin / base
+Missed duplicates (highest score first):
+  p=0.998  هدي | محمود | الحاج | ٢٨/١٠/١٩٦٢ | ٧٩١٢٥٤٤١ | صيدا | 4
+           Hoda | Mahmoud | Al-Hajj | 1962-10-28 | 79 125 441 | Saida | 4
+           truth: dup:arabic / base
+  p=0.998  Mahmood | Rami | Darwish | 1984-02-01 | 96179632432 | Jbail | 4
+           محود | رامي | درويش | 1/2/1984 | ٧٩٦٣٢٤٣٢ | جبيل | 4
+           truth: base / dup:arabic,typo
+  p=0.998  محود | رامي | درويش | 1/2/1984 | ٧٩٦٣٢٤٣٢ | جبيل | 4
+           Moahmood | Ramy | Darwiche | 01/02/1984 | +961 79 632 432 | Jbail | 4
+           truth: dup:arabic,typo / dup:typo
+  p=0.998  هدي | محمد | عيـسى | ١٩٩٠-٠٤-٢٧ | +961 81 922 630 | القبه | 5
+           Hoda | Mohammad | Eissa | 27/4/1990 | 81922630 | Qobbeh | 5
+           truth: dup:arabic / base
