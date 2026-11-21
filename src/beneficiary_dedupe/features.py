@@ -31,6 +31,7 @@ FEATURES: list[tuple[str, str]] = [
     ("phone", "phone_missing"),
     ("location", "village_same"),
     ("location", "district_same"),
+    ("location", "shelter_elsewhere"),
     ("household", "household_same"),
     ("household", "household_off_by_one"),
 ]
@@ -94,6 +95,10 @@ def compare(a: Prepared, b: Prepared) -> np.ndarray:
         x[IDX["village_same"]] = 1.0
     if a.district and a.district == b.district:
         x[IDX["district_same"]] = 1.0
+    elif a.at_shelter != b.at_shelter:
+        # One record taken at a shelter in another district: displaced
+        # households are expected to show a different village.
+        x[IDX["shelter_elsewhere"]] = 1.0
 
     if a.household is not None and b.household is not None:
         diff = abs(a.household - b.household)

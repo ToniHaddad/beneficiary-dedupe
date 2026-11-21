@@ -89,9 +89,12 @@ def compare_fields(a: Prepared, b: Prepared) -> dict:
     if a.village_sk and a.village_sk == b.village_sk:
         same_text = a.raw["village"] == b.raw["village"]
         out["village"] = {"status": "same" if same_text else "variant", "note": "" if same_text else "same place, spelled differently"}
+    elif a.district != b.district and a.at_shelter != b.at_shelter:
+        out["village"] = {"status": "differs", "note": "one record taken at a shelter in another district"}
     else:
         out["village"] = {"status": "differs", "note": "different village"}
     out["district"] = {"status": "same" if a.district == b.district else "differs", "note": ""}
+    out["centre"] = {"status": "info", "note": ""}
 
     if a.household is None or b.household is None:
         out["household_size"] = {"status": "missing", "note": ""}

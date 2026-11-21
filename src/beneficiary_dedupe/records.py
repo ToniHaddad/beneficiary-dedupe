@@ -41,7 +41,16 @@ class Prepared:
     phone: str
     village_sk: str
     district: str
+    at_shelter: bool    # registered by a team at a shelter (team or centre says so)
     household: int | None
+
+
+SHELTER_WORDS = ("shelter", "مركز ايواء", "مركز إيواء", "abri")
+
+
+def _at_shelter(row: dict) -> bool:
+    text = f"{row.get('team', '')} {row.get('centre', '')}".lower()
+    return any(w in text for w in SHELTER_WORDS)
 
 
 def _norm(text: str) -> str:
@@ -74,6 +83,7 @@ def prepare(idx: int, row: dict) -> Prepared:
         phone=normalize_phone(row.get("phone", "")),
         village_sk=skeleton(row.get("village", "")),
         district=(row.get("district") or "").strip().lower(),
+        at_shelter=_at_shelter(row),
         household=household,
     )
 

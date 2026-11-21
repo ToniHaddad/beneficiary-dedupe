@@ -12,6 +12,7 @@ import itertools
 import platform
 import time
 from collections import defaultdict
+from pathlib import Path
 
 import numpy as np
 from rapidfuzz import process
@@ -25,6 +26,7 @@ from .generate import generate
 from .model import Model
 from .normalize import has_arabic, parse_dob, phonetic, soundex
 from .pipeline import run
+from .records import read_csv
 from .train import TEST_SEED, TRAIN_SEED
 
 
@@ -119,15 +121,35 @@ def describe(r: dict) -> str:
     return " | ".join(parts)
 
 
+HELDOUT = Path(__file__).resolve().parents[2] / "data" / "heldout.csv"
+
+
+def load_heldout(n: int) -> tuple[list[dict], str]:
+    """The frozen held-out file if it is there (it was written before any rule
+    change and is never used for tuning), else the same seed regenerated."""
+    if HELDOUT.exists() and n == 10_000:
+        return read_csv(HELDOUT), f"data/heldout.csv (frozen, seed {TEST_SEED})"
+    return generate(n, TEST_SEED), f"generated, seed {TEST_SEED}"
+
+
+def displaced_pairs(rows: list[dict], pairs: set) -> set:
+    """True pairs between a home-area record and a shelter record of the same household."""
+    def shelter(i: int) -> bool:
+        return "displaced" in rows[i]["gen_note"]
+    return {(i, j) for i, j in pairs if shelter(i) != shelter(j)}
+
+
 def main(n: int = 10_000) -> None:
     line = "-" * 72
     model = Model.load()
-    print(f"Held-out set: synthetic, seed {TEST_SEED}, {n} records "
+    rows, source = load_heldout(n)
+    print(f"Held-out set: {source}, {len(rows)} synthetic records "
           f"(model trained on seed {TRAIN_SEED}, different households)")
-    rows = generate(n, TEST_SEED)
     truth = true_pairs(rows)
     truth_x = cross_script(rows, truth)
-    print(f"True duplicate pairs: {len(truth)}  (Arabic-to-Latin: {len(truth_x)})")
+    truth_d = displaced_pairs(rows, truth)
+    print(f"True duplicate pairs: {len(truth)}  (Arabic-to-Latin: {len(truth_x)}, "
+          f"home centre to shelter: {len(truth_d)})")
     print(f"Machine: {platform.system()} {platform.machine()}, Python {platform.python_version()}, one process")
     print(line)
 
@@ -168,7 +190,7 @@ def main(n: int = 10_000) -> None:
     lev_scores = levenshtein_scores(rows)
     lev = {p for p, s in lev_scores.items() if s >= lev_t}
 
-    print(f"\n{'method':<44}{'precision':>10}{'recall':>8}{'F1':>7}{'AR-LA recall':>14}")
+    print(f"\n{'method':<44}{'precision':>10}{'recall':>8}{'F1':>7}{'AR-LA rec':>11}{'shelter rec':>13}")
     table = [
         ("Exact name + date of birth", exact),
         (f"Levenshtein on full name >= {lev_t:.2f}", lev),
@@ -178,7 +200,19 @@ def main(n: int = 10_000) -> None:
     for label, pred in table:
         p, r, f = prf(pred, truth)
         rx = len(pred & truth_x) / len(truth_x) if truth_x else 0
-        print(f"{label:<44}{p:>10.3f}{r:>8.3f}{f:>7.3f}{rx:>14.3f}")
+        rd = len(pred & truth_d) / len(truth_d) if truth_d else 0
+        print(f"{label:<44}{p:>10.3f}{r:>8.3f}{f:>7.3f}{rx:>11.3f}{rd:>13.3f}")
+    print(line)
+
+    from collections import Counter
+    shelter_bands = Counter(band_name for pair, band_name in
+                            ((p, model.band(float(s), x)) for p, s, x in zip(res.pairs, res.probs, res.X))
+                            if pair in truth_d)
+    shelter_bands["not compared (blocking)"] = len(truth_d - cand)
+    print(f"Displaced households, home-centre record against shelter record ({len(truth_d)} true pairs):")
+    print(f"  certain match {shelter_bands['match']}, to review {shelter_bands['review']}, "
+          f"certain non-match {shelter_bands['non-match']}, never compared {shelter_bands['not compared (blocking)']}")
+    print(f"  put in one household automatically: {len(pred_cluster & truth_d) / len(truth_d):.3f}")
     print(line)
 
     bands = res.band_counts()

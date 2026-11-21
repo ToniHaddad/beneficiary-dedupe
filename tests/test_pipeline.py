@@ -32,6 +32,56 @@ def test_generator_is_seeded_and_labelled(rows):
     assert any(r["gen_note"].startswith("dup:") and "arabic" in r["gen_note"] for r in rows)
 
 
+def test_displaced_households_registered_again_at_a_shelter(rows):
+    from beneficiary_dedupe import names
+    by = {}
+    for r in rows:
+        by.setdefault(r["cluster_id"], []).append(r)
+    pairs = 0
+    for members in by.values():
+        home = [r for r in members if "displaced" not in r["gen_note"]]
+        shelter = [r for r in members if "displaced" in r["gen_note"]]
+        for s in shelter:
+            assert s["team"] == names.TEAM_SHELTER
+            assert s["centre"] == names.CENTRES[s["district"]]
+            for h in home:
+                assert h["district"] != s["district"]  # another district, another village
+                pairs += 1
+    assert pairs > 20
+    assert all(r["record_id"].startswith("REG-2026-") for r in rows)
+
+
+def test_heldout_file_is_what_the_generator_makes():
+    # The held-out set was frozen before any rule change; if the generator
+    # drifts, the benchmark would no longer be measuring the frozen set.
+    from pathlib import Path
+
+    from beneficiary_dedupe.records import FIELDS, TRUTH_FIELDS, read_csv
+    path = Path(__file__).resolve().parents[1] / "data" / "heldout.csv"
+    frozen = read_csv(path)
+    fresh = generate(10_000, seed=2)
+    keys = FIELDS + TRUTH_FIELDS
+    assert [{k: r[k] for k in keys} for r in frozen] == [{k: r[k] for k in keys} for r in fresh]
+
+
+def test_shelter_record_in_another_district_is_not_held_against_the_match():
+    base = {"given_name": "Jihad", "father_name": "Mahmoud", "family_name": "Hamoud",
+            "date_of_birth": "22/01/1984", "phone": "03822085", "household_size": "4"}
+    home = prepare(0, {**base, "village": "Khiam", "district": "Marjayoun", "centre": "Marjayoun centre",
+                       "team": "Centre social department"})
+    shelter = prepare(1, {**base, "village": "Saida", "district": "Saida", "centre": "Saida centre",
+                          "team": "Mobile team, school shelter"})
+    other = prepare(2, {**base, "village": "Saida", "district": "Saida", "centre": "Saida centre",
+                        "team": "Distribution point"})
+    i = FEATURE_NAMES.index("shelter_elsewhere")
+    assert compare(home, shelter)[i] == 1.0
+    assert compare(home, other)[i] == 0.0
+    model = Model.load()
+    p_shelter = model.predict(compare(home, shelter)[None, :])[0]
+    p_other = model.predict(compare(home, other)[None, :])[0]
+    assert p_shelter > p_other
+
+
 def test_blocking_recall_is_measured_and_high(rows):
     prepared = [prepare(i, r) for i, r in enumerate(rows)]
     pairs, stats = candidate_pairs(prepared)
