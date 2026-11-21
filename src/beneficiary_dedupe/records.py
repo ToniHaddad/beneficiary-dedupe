@@ -14,7 +14,7 @@ from .similarity import sound
 
 FIELDS = [
     "record_id", "given_name", "father_name", "family_name", "date_of_birth",
-    "phone", "village", "district", "household_size", "team",
+    "phone", "village", "district", "centre", "household_size", "team",
 ]
 TRUTH_FIELDS = ["cluster_id", "gen_note", "related_to"]
 

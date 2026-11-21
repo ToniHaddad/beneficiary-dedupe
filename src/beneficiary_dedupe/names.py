@@ -99,7 +99,7 @@ VILLAGES: list[tuple[str, str, list[str]]] = [
     ("Baalbek", "دورس", ["Douris", "Dures"]),
     ("Zahle", "برالياس", ["Bar Elias", "Bar Elyas", "Barelias"]),
     ("Zahle", "قب الياس", ["Qabb Elias", "Kab Elias", "Qab Elias"]),
-    ("Zahle", "سعدنايل", ["Saadnayel", "Saad Nayel", "Sadnayel"]),
+    ("Zahle", "زحلة", ["Zahle", "Zahleh", "Zahlé"]),
     ("Tyre", "قانا", ["Qana", "Kana"]),
     ("Tyre", "برج الشمالي", ["Burj el Shemali", "Borj Chemali", "Burj Shamali"]),
     ("Tyre", "معركة", ["Maarake", "Maaraka", "Marakeh"]),
@@ -109,16 +109,26 @@ VILLAGES: list[tuple[str, str, list[str]]] = [
     ("Bint Jbeil", "عيترون", ["Aitaroun", "Aytaroun", "Ayta Roun"]),
     ("Tripoli", "القبة", ["Qobbeh", "Kobbe", "Al Qubba"]),
     ("Tripoli", "الميناء", ["Mina", "El Mina", "Al-Mina"]),
+    ("Saida", "صيدا", ["Saida", "Saïda", "Sayda"]),
+    ("Jbeil", "جبيل", ["Jbeil", "Jbail"]),
+    ("Aley", "عاليه", ["Aley", "Aaley", "Alay"]),
 ]
 
-TEAMS = [
-    "NBR Akkar mobile team",
-    "NBR Bekaa tablet team",
-    "NBR South paper forms",
-    "NBR Tripoli desk",
-    "Municipality list",
-    "Partner NGO referral",
-]
+# Districts that empty out when fighting moves north: their households end up
+# in school shelters elsewhere.
+DISPLACEMENT_DISTRICTS = {"Tyre", "Nabatieh", "Marjayoun", "Bint Jbeil", "Baalbek"}
+# Towns where the Organization runs school shelters.
+SHELTER_TOWNS = ["Saida", "Jbeil", "Aley", "Zahle", "Qobbeh"]
+
+# Every district has one of the Organization's centres; registrations are
+# credited to the centre whose team took them.
+CENTRES = {district: f"{district} centre" for district, _, _ in VILLAGES}
+
+TEAM_SOCIAL = "Centre social department"
+TEAM_SHELTER = "Mobile team, school shelter"
+TEAM_DISTRIBUTION = "Distribution point"
+TEAM_PAPER = "Paper list, typed up later"
+TEAMS = [TEAM_SOCIAL, TEAM_SHELTER, TEAM_DISTRIBUTION, TEAM_PAPER]
 
 # Teams that work on paper in Arabic more often than not.
-ARABIC_TEAMS = {"NBR South paper forms", "Municipality list"}
+ARABIC_TEAMS = {TEAM_PAPER, TEAM_SOCIAL}

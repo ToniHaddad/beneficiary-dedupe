@@ -27,7 +27,8 @@ def test_queue_is_most_uncertain_first(client):
     c, _ = client
     q = c.get("/api/queue").json()
     gaps = [abs(item["p"] - 0.5) for item in q]
-    assert gaps == sorted(gaps)
+    # probabilities are rounded to 3 decimals in the API
+    assert all(a <= b + 0.001 for a, b in zip(gaps, gaps[1:]))
 
 
 def test_pair_detail_explains_itself(client):

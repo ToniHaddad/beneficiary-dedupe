@@ -1,11 +1,18 @@
-"""Seeded generator of synthetic household registrations for a fictional response.
+"""Seeded generator of synthetic household registrations during an emergency.
+
+The setting: a humanitarian organization in Lebanon registers households at
+its centres (one per district) and at distribution points. When people are
+displaced, mobile teams register them again in school shelters in another
+district. A centre's social department, a mobile team at a shelter and a
+paper list typed up later each write names their own way.
 
 Every record is invented. Duplicates are made the way they arise in the field:
 a second team registers the same household with another transliteration, in
 Arabic script, with the names in another order, without the father's name,
 with day and month swapped, with a year only or an estimated age, with the
-phone written another way or changed, in another village after moving, with
-the household size off by one or after a split, or with a typing error. Hard
+phone written another way or changed, at a shelter in another district after
+displacement, with the household size off by one or after a split, or with a
+typing error. Hard
 negatives are added on purpose: siblings (and twins) who head their own
 households, and different people with the same name in the same village.
 
@@ -182,8 +189,15 @@ class Generator:
         rng = self.rng
         gtable = names.FEMALE_GIVEN if p.female else names.MALE_GIVEN
         village = p.village
-        if "moved" in tags:  # displaced again and registered where they are now
-            village = (village + rng.randrange(1, len(names.VILLAGES))) % len(names.VILLAGES)
+        team = None
+        if "displaced" in tags:
+            # Fled the home area; registered again by the mobile team at a
+            # school shelter in another district, under the shelter's town.
+            home_district = names.VILLAGES[p.village][0]
+            towns = [i for i, v in enumerate(names.VILLAGES)
+                     if v[2][0] in names.SHELTER_TOWNS and v[0] != home_district]
+            village = rng.choice(towns)
+            team = names.TEAM_SHELTER
         district, village_ar, village_lat = names.VILLAGES[village]
 
         def name(table, i):
@@ -222,7 +236,9 @@ class Generator:
         if "household_split" in tags:
             household = max(1, household + rng.choice([-3, -2, 2, 3]))
 
-        team_pool = sorted(names.ARABIC_TEAMS) if arabic else [t for t in names.TEAMS if t not in names.ARABIC_TEAMS]
+        if team is None:
+            team_pool = sorted(names.ARABIC_TEAMS) if arabic else [names.TEAM_SOCIAL, names.TEAM_DISTRIBUTION]
+            team = rng.choice(team_pool)
         return {
             "given_name": given,
             "father_name": father,
@@ -231,8 +247,9 @@ class Generator:
             "phone": phone,
             "village": _arabic_variation(rng, village_ar) if arabic else _latin_variant(rng, village_lat),
             "district": district,
+            "centre": names.CENTRES[district],
             "household_size": str(household),
-            "team": rng.choice(team_pool),
+            "team": team,
             "cluster_id": p.cluster_id,
             "gen_note": note,
             "related_to": related,
@@ -279,8 +296,9 @@ class Generator:
                     tags.append("year_typo")
                 elif r < 0.31:
                     tags.append("age_estimated")
-                if rng.random() < 0.08:
-                    tags.append("moved")
+                home = names.VILLAGES[p.village][0]
+                if rng.random() < (0.30 if home in names.DISPLACEMENT_DISTRICTS else 0.04):
+                    tags.append("displaced")
                 if rng.random() < 0.10:
                     tags.append("new_phone")
                 elif rng.random() < 0.07:
@@ -312,7 +330,7 @@ class Generator:
         rows = rows[:n]
         rng.shuffle(rows)
         for i, row in enumerate(rows):
-            row["record_id"] = f"NBR-{i + 1:06d}"
+            row["record_id"] = f"REG-2026-{i + 1:05d}"
         return [{k: row[k] for k in FIELDS + TRUTH_FIELDS} for row in rows]
 
 
